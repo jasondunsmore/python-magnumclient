@@ -56,6 +56,11 @@ class TestCommandLineArgument(utils.TestCase):
         '.*(Use the \-\-[a-z\-]* parameter to avoid seeing this message)+'
     ]
 
+    _deprecated_name_warning = [
+        '.*(WARNING: The --name parameter is deprecated)+',
+        '.*(Use the <name> positional parameter instead)+'
+    ]
+
     _few_argument_error = [
         '.*?^usage: magnum ',
         '.*?^error: (the following arguments|too few arguments)',

@@ -15,6 +15,7 @@
 import mock
 
 from magnumclient import exceptions
+from magnumclient.common import cliutils
 from magnumclient.tests.v1 import shell_test_base
 from magnumclient.tests.v1 import test_clustertemplates_shell
 from magnumclient.v1.clusters import Cluster
@@ -178,10 +179,17 @@ class ShellTest(shell_test_base.TestCommandLineArgument):
 
     @mock.patch('magnumclient.v1.cluster_templates.ClusterTemplateManager.get')
     @mock.patch('magnumclient.v1.clusters.ClusterManager.create')
-    def test_cluster_create_deprecation_warnings(self, mock_create, mock_get):
+    def test_cluster_create_deprecation_warnings(self, mock_create,
+                                                           mock_get):
         self._test_arg_failure('cluster-create --cluster-template xxx '
                                '--keypair-id x',
                                self._deprecated_warning)
+        self.assertTrue(mock_create.called)
+        self.assertTrue(mock_get.called)
+
+        self._test_arg_failure('cluster-create --cluster-template xxx '
+                               '--name foo ',
+                               self._deprecated_name_warning)
         self.assertTrue(mock_create.called)
         self.assertTrue(mock_get.called)
 
@@ -215,15 +223,41 @@ class ShellTest(shell_test_base.TestCommandLineArgument):
 
     @mock.patch('magnumclient.v1.cluster_templates.ClusterTemplateManager.get')
     @mock.patch('magnumclient.v1.clusters.ClusterManager.create')
-    def test_cluster_create_success_only_clustertemplate_arg(self,
-                                                             mock_create,
-                                                             mock_get):
+    def _test_cluster_create_success(self, cmd, expected_args, expected_kwargs,
+                                     mock_create, mock_get):
         mock_ct = mock.MagicMock()
         mock_ct.uuid = 'xxx'
         mock_get.return_value = mock_ct
-        self._test_arg_success('cluster-create --cluster-template xxx')
-        expected_args = self._get_expected_args_create('xxx')
-        mock_create.assert_called_with(**expected_args)
+        self._test_arg_success(cmd)
+        expected = self._get_expected_args_create(*expected_args,
+                                                  **expected_kwargs)
+        mock_create.assert_called_with(**expected)
+
+    def test_cluster_create_success_only_clustertemplate_arg(self):
+        self._test_cluster_create_success(
+            'cluster-create --cluster-template xxx',
+            ['xxx'],
+            {})
+
+    @mock.patch('magnumclient.v1.cluster_templates.ClusterTemplateManager.get')
+    @mock.patch('magnumclient.v1.clusters.ClusterManager.create')
+    def test_cluster_create_success_only_positional_name(self,
+                                                         mock_create,
+                                                         mock_get):
+        self._test_cluster_create_success(
+            'cluster-create foo --cluster-template xxx',
+            ['xxx'],
+            {'name': 'foo'})
+
+    @mock.patch('magnumclient.v1.cluster_templates.ClusterTemplateManager.get')
+    @mock.patch('magnumclient.v1.clusters.ClusterManager.create')
+    def test_cluster_create_success_only_optional_name(self,
+                                                       mock_create,
+                                                       mock_get):
+        self._test_cluster_create_success(
+            'cluster-create --name foo --cluster-template xxx',
+            ['xxx'],
+            {'name': 'foo'})
 
     @mock.patch('magnumclient.v1.clusters.ClusterManager.create')
     def test_cluster_create_failure_only_name(self, mock_create):
@@ -268,6 +302,12 @@ class ShellTest(shell_test_base.TestCommandLineArgument):
         self._test_arg_failure('cluster-create --cluster-template xxx '
                                '--master-count test',
                                self._invalid_value_error)
+        mock_create.assert_not_called()
+
+    @mock.patch('magnumclient.v1.clusters.ClusterManager.create')
+    def test_cluster_create_failure_duplicate_name(self, mock_create):
+        self._test_arg_failure('cluster-create foo --name bar',
+                               self._mandatory_arg_error)
         mock_create.assert_not_called()
 
     @mock.patch('magnumclient.v1.clusters.ClusterManager.delete')
