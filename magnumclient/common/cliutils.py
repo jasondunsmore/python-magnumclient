@@ -49,6 +49,14 @@ class MissingArgs(Exception):
         super(MissingArgs, self).__init__(msg)
 
 
+class DuplicateArgs(Exception):
+    """More than one of the same argument type was passed."""
+    def __init__(self, param, dupes):
+        msg = _('Duplicate "%(param)s" arguments: %(dupes)s') % {
+            'param': param, 'dupes': ", ".join(dupes)}
+        super(DuplicateArgs, self).__init__(msg)
+
+
 def validate_args(fn, *args, **kwargs):
     """Check that the supplied args are sufficient for calling a function.
 
@@ -80,6 +88,11 @@ def validate_args(fn, *args, **kwargs):
     missing = missing[len(args):]
     if missing:
         raise MissingArgs(missing)
+
+
+def validate_name_args(positional_name, optional_name):
+    if positional_name and optional_name:
+        raise DuplicateArgs("<name>", (positional_name, optional_name))
 
 
 def deprecated(message):
